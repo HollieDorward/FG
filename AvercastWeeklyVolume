@@ -1,0 +1,74 @@
+USE [PowerBIWarehouse]
+GO
+
+/****** Object:  View [dbo].[AvercastWeeklyVolume]    Script Date: 13/12/2023 16:30:15 ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+ALTER VIEW [dbo].[AvercastWeeklyVolume] AS
+
+WITH 
+
+MonthlyQuant AS(
+SELECT
+AVI.Site,
+AVI.SKU,
+year(AVI.Date) 'Year',
+month(AVI.Date) 'Month', 
+SUM(AVI.Quantity) 'MonthlyQuant',-- not showing correctly after detail join counting rows here
+count(AVI.SKU) 'NoWeeks' -- not showing correctly after detail join counting rows here
+
+FROM dbo.[AvercastVolumeInput] AVI
+
+Group by
+AVI.Site,
+AVI.SKU,
+year(AVI.Date),
+month(AVI.Date)
+),
+
+DeliveredQuant AS(
+SELECT
+D.ShipmentSite,
+D.Product,
+year(d.ShipmentDate) 'Year',
+month(d.ShipmentDate) 'Month', 
+SUM(D.Deliveredquantity) 'Shipped'
+
+FROM [MES].[DeliveryDetail] D
+
+Group by
+D.ShipmentSite,
+D.Product,
+year(d.ShipmentDate),
+month(d.ShipmentDate) 
+)
+
+
+SELECT
+AVI.Site,
+AVI.SKU,
+AVI.Date,
+AVI.Quantity,
+MQ.monthlyquant-ISNULL(DQ.Shipped,0) 'Remaining monthly sales', 
+MQ.noweeks, -- need to adjust weeks in month to weeks remaining
+CASE WHEN (year(AVI.Date)=year(getdate()) AND month(AVI.Date)>Month(getdate())) OR year(AVI.Date)>year(getdate()) THEN AVI.Quantity
+     WHEN AVI.Date>getdate() THEN (MQ.monthlyquant-ISNULL(DQ.Shipped,0))/MQ.noweeks
+	 ELSE 0 END  'Prediction',
+
+CASE WHEN (year(AVI.Date)=year(getdate()) AND month(AVI.Date)>Month(getdate())) OR year(AVI.Date)>year(getdate()) THEN 'Prediction' 
+     WHEN AVI.Date>getdate() THEN 'Prediction adjusted' 
+	 ELSE 'Error' END  'test' -- need to do cut off point for week
+
+
+FROM dbo.[AvercastVolumeInput] AVI
+JOIN MonthlyQuant MQ ON AVI.Site=MQ.Site AND AVI.SKU=MQ.SKU AND year(AVI.Date)= MQ.Year AND month(AVI.Date) = MQ.Month
+LEFT JOIN DeliveredQuant DQ ON AVI.Site=DQ.ShipmentSite AND AVI.SKU=DQ.Product AND year(AVI.Date)= DQ.Year AND month(AVI.Date) = DQ.Month
+
+GO
+
+
