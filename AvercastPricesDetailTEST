@@ -38,7 +38,7 @@ sidd.Product
 ,bpc.StatisticalGroup1
 ,BG.BuyingGroup
 
-),
+), --fine. can't have currency in here because grouped with diff currencies
 
 RetailPrice AS(
 
@@ -48,21 +48,39 @@ rpl.Criteria2
 ,bpc.CustomerNumber
 ,rpl.price
 ,rpl.currency
-FROM MES.SalesInvoiceDetail sidd
-INNER JOIN MES.SalesInvoice sih on sidd.invoicenumber = sih.documentnumber
-INNER JOIN DIM.Product itm ON sidd.Product = itm.ProductReference
-INNER JOIN dim.Customer bpc ON sidd.BillToCustomer = bpc.CustomerNumber
-INNER JOIN (SELECT Criteria2
+
+FROM (SELECT Criteria2
 			,Criteria1
 			,price
 			,currency
 			FROM dbo.SalesPriceList      
-			where PriceListCode = 'T20' and getdate() BETWEEN ValidityStartDate AND ValidityEndDate) rpl ON itm.ProductReference = rpl.Criteria1 AND bpc.StatisticalGroup1 = rpl.Criteria2 AND sih.currency=rpl.Currency
+			where PriceListCode = 'T20' and LatestFlag=1) rpl
+
+INNER JOIN DIM.Product itm ON itm.ProductReference = rpl.Criteria1
+INNER JOIN dim.Customer bpc ON bpc.StatisticalGroup1 = rpl.Criteria2
+
+WHERE itm.productstatus <>'Obsolete'
+AND NOT EXISTS (SELECT Criteria2 FROM dbo.SalesPriceList WHERE bpc.CustomerNumber = Criteria1 AND PriceListCode = 'T70' AND LatestFlag=1)
+
+),
+
+Invoiced AS(
+SELECT
+sidd.InvoicedQuantity 
+,sidd.Product
+,sih.currency
+,sidd.SalesSite
+,sidd.BillToCustomer
+
+FROM MES.SalesInvoiceDetail sidd
+INNER JOIN MES.SalesInvoice sih on sidd.invoicenumber = sih.documentnumber
+INNER JOIN dim.Customer bpc ON sidd.BillToCustomer = bpc.CustomerNumber
+LEFT JOIN [dbo].[MainBuyingGroup] BG ON bpc.StatisticalGroup3 = BG.BuyingGroup
+INNER JOIN DIM.Product itm ON sidd.Product = itm.ProductReference
 
 WHERE sidd.invoicedate>  dateadd(year,-1,getdate())
 AND sidd.InvoicedQuantity>0
 AND itm.productstatus <>'Obsolete'
-AND NOT EXISTS (SELECT Criteria2 FROM dbo.SalesPriceList WHERE bpc.CustomerNumber = Criteria1 AND PriceListCode = 'T70' AND LatestFlag=1)
 
 )
 
@@ -78,8 +96,8 @@ itm.ProductReference 'SKU'
 ,BG.BuyingGroup 'GroupedBuyingGroup'
 ,Sum(sidd.InvoicedQuantity) 'VolumeRollingYear'
 ,MAX(TQ.TotalQuant) 'GroupVolume'
-,Sum(sidd.InvoicedQuantity)/MAX(TQ.TotalQuant) 'PercentageOfGroup'
-, 0 'AverageDiscount'
+,ISNULL(Sum(sidd.InvoicedQuantity)/MAX(TQ.TotalQuant),0) 'PercentageOfGroup'
+, 0 'Discount'
 ,spl.currency 'Currency'
 ,MIN(spl.price) 'PriceListPrice(ex.TAX)'
 ,MIN(spl.price) 'Discounted Price'
@@ -88,16 +106,14 @@ itm.ProductReference 'SKU'
 
 ,'T70' 'Source'
 
-
-FROM MES.SalesInvoiceDetail sidd
-INNER JOIN MES.SalesInvoice sih on sidd.invoicenumber = sih.documentnumber 
-INNER JOIN (SELECT Criteria2
+FROM (SELECT Criteria2
 			,Criteria1
 			,MIN(price) price
 			,currency
 			FROM dbo.SalesPriceList      
-			where PriceListCode = 'T70' AND LatestFlag=1 GROUP BY Criteria2,Criteria1,currency) spl ON spl.Criteria2 =sidd.Product AND spl.Criteria1 =sidd.BillToCustomer AND spl.Currency=sih.Currency
-			
+			where PriceListCode = 'T70' AND LatestFlag=1 GROUP BY Criteria2,Criteria1,currency) spl
+
+LEFT JOIN Invoiced sidd ON spl.Criteria2 =sidd.Product AND spl.Criteria1 =sidd.BillToCustomer AND spl.Currency=sidd.Currency
 INNER JOIN DIM.Product itm ON spl.Criteria2 = itm.ProductReference
 INNER JOIN dim.Customer bpc ON spl.Criteria1 = bpc.CustomerNumber
 LEFT JOIN [dbo].[ExchangeRates] EX ON spl.currency = EX.SourceCurrency AND EX.LatestFlag=1 AND EX.Currency = 'GBP'
@@ -105,8 +121,6 @@ LEFT JOIN [dbo].[MainBuyingGroup] BG ON bpc.StatisticalGroup3 = BG.BuyingGroup
 LEFT JOIN TotalQuant TQ ON itm.ProductReference = TQ.Product AND isnull(BG.BuyingGroup,'') = ISNULL(TQ.BuyingGroup,'') AND bpc.StatisticalGroup1 = TQ.StatisticalGroup1 AND sidd.SalesSite = TQ.SalesSite
 
 WHERE itm.productstatus <>'Obsolete'
-AND sidd.InvoicedQuantity>0
-AND sidd.invoicedate>  dateadd(year,-1,getdate())
 
 
 GROUP BY 
@@ -125,8 +139,8 @@ UNION
 ----------T20 items------T20 is incl. TAX so this is calcuated and taken away. discounts are applied pre-tax. 
 
 SELECT
-sidd.Product 'SKU'
-,sidd.BillToCustomer 'CustomerNumber'
+itm.ProductReference 'SKU'
+,bpc.BillToCustomer 'CustomerNumber'
 ,itm.Description1 'ItemDescription'
 ,sidd.SalesSite 'Site'
 ,bpc.StatisticalGroup1 'Category'
@@ -135,48 +149,55 @@ sidd.Product 'SKU'
 --,sidd.InvoicedQuantity 'invoice volume'
 ,Sum(sidd.InvoicedQuantity) 'VolumeRollingYear'
 ,MAX(TQ.TotalQuant) 'GroupVolume'
-,Sum(sidd.InvoicedQuantity)/MAX(TQ.TotalQuant) 'PercentageOfGroup'
-,AVG(sidd.discountchargevalue) 'AverageDiscount'
-,sih.currency 'Currency'
+,ISNULL(Sum(sidd.InvoicedQuantity)/MAX(TQ.TotalQuant),0) 'PercentageOfGroup'
+,ISNULL(dpl.discount,0) 'Discount'
+,rpl.currency 'Currency'
 ,Min(rpl.price)/(1+(ISNULL(TRN.Rate,0)/100)) 'PriceListPrice (ex.TAX)'
-,Min(rpl.price)/(1+(ISNULL(TRN.Rate,0)/100))*(1-(AVG(sidd.discountchargevalue)/100)) 'Discounted Price'
-,CASE WHEN rpl.Currency='GBP' THEN Min(rpl.price)/(1+(ISNULL(TRN.Rate,0)/100))*(1-(AVG(sidd.discountchargevalue)/100)) 
-                              ELSE (Min(rpl.price)/(1+(ISNULL(TRN.Rate,0)/100))*(1-(AVG(sidd.discountchargevalue)/100)))/EX.InverseRate END 'Discounted Price GBP'
+,Min(rpl.price)/(1+(ISNULL(TRN.Rate,0)/100))*(1-(dpl.discount/100)) 'Discounted Price'
+,CASE WHEN rpl.Currency='GBP' THEN Min(rpl.price)/(1+(ISNULL(TRN.Rate,0)/100))*(1-(dpl.discount/100)) 
+                              ELSE (Min(rpl.price)/(1+(ISNULL(TRN.Rate,0)/100))*(1-(dpl.discount/100)))/EX.InverseRate END 'Discounted Price GBP'
 
-,'T20' 'Source'
+,'T20 & T40' 'Source'
 
-FROM MES.SalesInvoiceDetail sidd
-INNER JOIN MES.SalesInvoice sih on sidd.invoicenumber = sih.documentnumber
-INNER JOIN dim.Customer bpc ON sidd.BillToCustomer = bpc.CustomerNumber
-INNER JOIN (SELECT Criteria2
+
+FROM (SELECT Criteria2
 			,Criteria1
 			,min(price) price
 			,currency
 			FROM dbo.SalesPriceList      
-			where PriceListCode = 'T20' and getdate() BETWEEN ValidityStartDate AND ValidityEndDate Group by Criteria2,Criteria1,currency ) rpl ON sidd.Product = rpl.Criteria1 AND bpc.StatisticalGroup1 = rpl.Criteria2 AND sih.currency=rpl.Currency
+			where PriceListCode = 'T20' AND LatestFlag=1 Group by Criteria2,Criteria1,currency ) rpl 
 
-INNER JOIN DIM.Product itm ON sidd.Product = itm.ProductReference
+INNER JOIN dim.Customer bpc ON bpc.StatisticalGroup1 = rpl.Criteria2
+LEFT JOIN Invoiced sidd ON rpl.Criteria1 =sidd.Product AND bpc.BillToCustomer =sidd.BillToCustomer AND rpl.Currency=sidd.Currency
+INNER JOIN DIM.Product itm ON rpl.Criteria1 = itm.ProductReference
+
+LEFT JOIN (SELECT Criteria2
+			,Criteria1
+			,Criteria3
+			,max(ChargeDiscountValue) discount
+			,currency
+			FROM dbo.SalesPriceList      
+			where PriceListCode = 'T40' AND LatestFlag=1 Group by Criteria2,Criteria1,criteria3,currency ) dpl ON bpc.BillToCustomer = dpl.Criteria1 AND itm.StatisticalGroup2 = dpl.Criteria2 AND itm.StatisticalGroup3 = dpl.Criteria3
+
 INNER JOIN dbo.TaxRates TRN ON itm.taxlevel=TRN.ProductTaxLevel AND bpc.TaxRule=TRN.BPtaxRule AND TRN.[SITE]=sidd.SalesSite AND TRN.EnabledFlag='y'
 LEFT JOIN [dbo].[ExchangeRates] EX ON rpl.currency = EX.SourceCurrency AND EX.LatestFlag=1 AND EX.Currency = 'GBP'
 LEFT JOIN [dbo].[MainBuyingGroup] BG ON bpc.StatisticalGroup3 = BG.BuyingGroup
 LEFT JOIN TotalQuant TQ ON itm.ProductReference = TQ.Product AND isnull(BG.BuyingGroup,'') = ISNULL(TQ.BuyingGroup,'') AND bpc.StatisticalGroup1 = TQ.StatisticalGroup1 AND sidd.SalesSite = TQ.SalesSite
 
-WHERE sidd.invoicedate>  dateadd(year,-1,getdate())
-AND sidd.InvoicedQuantity>0
-AND itm.productstatus <>'Obsolete'
-AND NOT EXISTS (SELECT Criteria2 FROM dbo.SalesPriceList WHERE bpc.CustomerNumber = Criteria1 AND PriceListCode = 'T70' AND LatestFlag=1)
+WHERE itm.productstatus <>'Obsolete'
+AND NOT EXISTS (SELECT Criteria2 FROM dbo.SalesPriceList WHERE bpc.CustomerNumber = Criteria1 AND PriceListCode = 'T70' AND LatestFlag=1 AND rpl.currency=Currency)
 
-group by sidd.Product
+group by itm.ProductReference
 ,itm.Description1
 ,sidd.SalesSite
 ,bpc.StatisticalGroup1
 ,rpl.currency
-,sih.currency
 ,TRN.Rate
-,sidd.BillToCustomer
+,bpc.BillToCustomer
 ,bpc.StatisticalGroup3
 ,BG.BuyingGroup
 ,EX.InverseRate
+,dpl.discount
 
 UNION
 
