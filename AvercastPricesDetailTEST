@@ -90,7 +90,7 @@ SELECT DISTINCT
 itm.ProductReference 'SKU'
 ,bpc.CustomerNumber 'CustomerNumber'
 ,itm.Description1 'ItemDescription'
-,sidd.SalesSite 'Site'
+,PS.StockSite 'Site'
 ,bpc.StatisticalGroup1 'Category'
 ,bpc.StatisticalGroup3 'BuyingGroup'
 ,BG.BuyingGroup 'GroupedBuyingGroup'
@@ -103,7 +103,6 @@ itm.ProductReference 'SKU'
 ,MIN(spl.price) 'Discounted Price'
 ,CASE WHEN spl.Currency='GBP' THEN MIN(spl.price)
                               ELSE MIN(spl.price)/EX.InverseRate END 'Discounted Price GBP'
-
 ,'T70' 'Source'
 
 FROM (SELECT Criteria2
@@ -113,20 +112,20 @@ FROM (SELECT Criteria2
 			FROM dbo.SalesPriceList      
 			where PriceListCode = 'T70' AND LatestFlag=1 GROUP BY Criteria2,Criteria1,currency) spl
 
-LEFT JOIN Invoiced sidd ON spl.Criteria2 =sidd.Product AND spl.Criteria1 =sidd.BillToCustomer AND spl.Currency=sidd.Currency
 INNER JOIN DIM.Product itm ON spl.Criteria2 = itm.ProductReference
 INNER JOIN dim.Customer bpc ON spl.Criteria1 = bpc.CustomerNumber
+LEFT JOIN [dbo].[ProductSite] PS ON spl.Criteria2 = PS.Product
+LEFT JOIN Invoiced sidd ON spl.Criteria2 =sidd.Product AND spl.Criteria1 =sidd.BillToCustomer AND spl.Currency=sidd.Currency and sidd.SalesSite = PS.StockSite
 LEFT JOIN [dbo].[ExchangeRates] EX ON spl.currency = EX.SourceCurrency AND EX.LatestFlag=1 AND EX.Currency = 'GBP'
 LEFT JOIN [dbo].[MainBuyingGroup] BG ON bpc.StatisticalGroup3 = BG.BuyingGroup
 LEFT JOIN TotalQuant TQ ON itm.ProductReference = TQ.Product AND isnull(BG.BuyingGroup,'') = ISNULL(TQ.BuyingGroup,'') AND bpc.StatisticalGroup1 = TQ.StatisticalGroup1 AND sidd.SalesSite = TQ.SalesSite
 
 WHERE itm.productstatus <>'Obsolete'
 
-
 GROUP BY 
 itm.ProductReference
 ,itm.Description1
-,sidd.SalesSite
+,PS.StockSite
 ,bpc.StatisticalGroup1
 ,spl.currency
 ,bpc.CustomerNumber
@@ -142,7 +141,7 @@ SELECT
 itm.ProductReference 'SKU'
 ,bpc.BillToCustomer 'CustomerNumber'
 ,itm.Description1 'ItemDescription'
-,sidd.SalesSite 'Site'
+,PS.StockSite 'Site'
 ,bpc.StatisticalGroup1 'Category'
 ,bpc.StatisticalGroup3 'BuyingGroup'
 ,BG.BuyingGroup 'GroupedBuyingGroup'
@@ -168,7 +167,6 @@ FROM (SELECT Criteria2
 			where PriceListCode = 'T20' AND LatestFlag=1 Group by Criteria2,Criteria1,currency ) rpl 
 
 INNER JOIN dim.Customer bpc ON bpc.StatisticalGroup1 = rpl.Criteria2
-LEFT JOIN Invoiced sidd ON rpl.Criteria1 =sidd.Product AND bpc.BillToCustomer =sidd.BillToCustomer AND rpl.Currency=sidd.Currency
 INNER JOIN DIM.Product itm ON rpl.Criteria1 = itm.ProductReference
 
 LEFT JOIN (SELECT Criteria2
@@ -179,7 +177,9 @@ LEFT JOIN (SELECT Criteria2
 			FROM dbo.SalesPriceList      
 			where PriceListCode = 'T40' AND LatestFlag=1 Group by Criteria2,Criteria1,criteria3,currency ) dpl ON bpc.BillToCustomer = dpl.Criteria1 AND itm.StatisticalGroup2 = dpl.Criteria2 AND itm.StatisticalGroup3 = dpl.Criteria3
 
-INNER JOIN dbo.TaxRates TRN ON itm.taxlevel=TRN.ProductTaxLevel AND bpc.TaxRule=TRN.BPtaxRule AND TRN.[SITE]=sidd.SalesSite AND TRN.EnabledFlag='y'
+LEFT JOIN [dbo].[ProductSite] PS ON rpl.Criteria1 = PS.Product 
+LEFT JOIN Invoiced sidd ON rpl.Criteria1 =sidd.Product AND bpc.BillToCustomer =sidd.BillToCustomer AND rpl.Currency=sidd.Currency and sidd.SalesSite = PS.StockSite
+LEFT JOIN dbo.TaxRates TRN ON itm.taxlevel=TRN.ProductTaxLevel AND bpc.TaxRule=TRN.BPtaxRule AND TRN.[SITE]=sidd.SalesSite AND TRN.EnabledFlag='y'
 LEFT JOIN [dbo].[ExchangeRates] EX ON rpl.currency = EX.SourceCurrency AND EX.LatestFlag=1 AND EX.Currency = 'GBP'
 LEFT JOIN [dbo].[MainBuyingGroup] BG ON bpc.StatisticalGroup3 = BG.BuyingGroup
 LEFT JOIN TotalQuant TQ ON itm.ProductReference = TQ.Product AND isnull(BG.BuyingGroup,'') = ISNULL(TQ.BuyingGroup,'') AND bpc.StatisticalGroup1 = TQ.StatisticalGroup1 AND sidd.SalesSite = TQ.SalesSite
@@ -189,7 +189,7 @@ AND NOT EXISTS (SELECT Criteria2 FROM dbo.SalesPriceList WHERE bpc.CustomerNumbe
 
 group by itm.ProductReference
 ,itm.Description1
-,sidd.SalesSite
+,PS.StockSite
 ,bpc.StatisticalGroup1
 ,rpl.currency
 ,TRN.Rate
