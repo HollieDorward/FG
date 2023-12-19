@@ -60,7 +60,7 @@ INNER JOIN DIM.Product itm ON itm.ProductReference = rpl.Criteria1
 INNER JOIN dim.Customer bpc ON bpc.StatisticalGroup1 = rpl.Criteria2
 
 WHERE itm.productstatus <>'Obsolete'
-AND NOT EXISTS (SELECT Criteria2 FROM dbo.SalesPriceList WHERE bpc.CustomerNumber = Criteria1 AND PriceListCode = 'T70' AND LatestFlag=1)
+AND NOT EXISTS (SELECT Criteria2 FROM dbo.SalesPriceList WHERE bpc.CustomerNumber = Criteria1 AND PriceListCode = 'T70' AND LatestFlag=1 AND itm.ProductReference =Criteria2)
 
 ),
 
@@ -118,7 +118,7 @@ LEFT JOIN [dbo].[ProductSite] PS ON spl.Criteria2 = PS.Product
 LEFT JOIN Invoiced sidd ON spl.Criteria2 =sidd.Product AND spl.Criteria1 =sidd.BillToCustomer AND spl.Currency=sidd.Currency and sidd.SalesSite = PS.StockSite
 LEFT JOIN [dbo].[ExchangeRates] EX ON spl.currency = EX.SourceCurrency AND EX.LatestFlag=1 AND EX.Currency = 'GBP'
 LEFT JOIN [dbo].[MainBuyingGroup] BG ON bpc.StatisticalGroup3 = BG.BuyingGroup
-LEFT JOIN TotalQuant TQ ON itm.ProductReference = TQ.Product AND isnull(BG.BuyingGroup,'') = ISNULL(TQ.BuyingGroup,'') AND bpc.StatisticalGroup1 = TQ.StatisticalGroup1 AND sidd.SalesSite = TQ.SalesSite
+LEFT JOIN TotalQuant TQ ON itm.ProductReference = TQ.Product AND isnull(BG.BuyingGroup,'') = ISNULL(TQ.BuyingGroup,'') AND bpc.StatisticalGroup1 = TQ.StatisticalGroup1 AND PS.StockSite = TQ.SalesSite
 
 WHERE itm.productstatus <>'Obsolete'
 
@@ -146,15 +146,15 @@ itm.ProductReference 'SKU'
 ,bpc.StatisticalGroup3 'BuyingGroup'
 ,BG.BuyingGroup 'GroupedBuyingGroup'
 --,sidd.InvoicedQuantity 'invoice volume'
-,Sum(sidd.InvoicedQuantity) 'VolumeRollingYear'
+,ISNULL(Sum(sidd.InvoicedQuantity),0) 'VolumeRollingYear'
 ,MAX(TQ.TotalQuant) 'GroupVolume'
 ,ISNULL(Sum(sidd.InvoicedQuantity)/MAX(TQ.TotalQuant),0) 'PercentageOfGroup'
 ,ISNULL(dpl.discount,0) 'Discount'
 ,rpl.currency 'Currency'
 ,Min(rpl.price)/(1+(ISNULL(TRN.Rate,0)/100)) 'PriceListPrice (ex.TAX)'
-,Min(rpl.price)/(1+(ISNULL(TRN.Rate,0)/100))*(1-(dpl.discount/100)) 'Discounted Price'
-,CASE WHEN rpl.Currency='GBP' THEN Min(rpl.price)/(1+(ISNULL(TRN.Rate,0)/100))*(1-(dpl.discount/100)) 
-                              ELSE (Min(rpl.price)/(1+(ISNULL(TRN.Rate,0)/100))*(1-(dpl.discount/100)))/EX.InverseRate END 'Discounted Price GBP'
+,Min(rpl.price)/(1+(ISNULL(TRN.Rate,0)/100))*(1-(ISNULL(dpl.discount,0)/100)) 'Discounted Price'
+,CASE WHEN rpl.Currency='GBP' THEN Min(rpl.price)/(1+(ISNULL(TRN.Rate,0)/100))*(1-(ISNULL(dpl.discount,0)/100)) 
+                              ELSE (Min(rpl.price)/(1+(ISNULL(TRN.Rate,0)/100))*(1-(ISNULL(dpl.discount,0)/100)))/EX.InverseRate END 'Discounted Price GBP'
 
 ,'T20 & T40' 'Source'
 
@@ -182,10 +182,10 @@ LEFT JOIN Invoiced sidd ON rpl.Criteria1 =sidd.Product AND bpc.BillToCustomer =s
 LEFT JOIN dbo.TaxRates TRN ON itm.taxlevel=TRN.ProductTaxLevel AND bpc.TaxRule=TRN.BPtaxRule AND TRN.[SITE]=sidd.SalesSite AND TRN.EnabledFlag='y'
 LEFT JOIN [dbo].[ExchangeRates] EX ON rpl.currency = EX.SourceCurrency AND EX.LatestFlag=1 AND EX.Currency = 'GBP'
 LEFT JOIN [dbo].[MainBuyingGroup] BG ON bpc.StatisticalGroup3 = BG.BuyingGroup
-LEFT JOIN TotalQuant TQ ON itm.ProductReference = TQ.Product AND isnull(BG.BuyingGroup,'') = ISNULL(TQ.BuyingGroup,'') AND bpc.StatisticalGroup1 = TQ.StatisticalGroup1 AND sidd.SalesSite = TQ.SalesSite
+LEFT JOIN TotalQuant TQ ON itm.ProductReference = TQ.Product AND isnull(BG.BuyingGroup,'') = ISNULL(TQ.BuyingGroup,'') AND bpc.StatisticalGroup1 = TQ.StatisticalGroup1 AND PS.StockSite = TQ.SalesSite
 
 WHERE itm.productstatus <>'Obsolete'
-AND NOT EXISTS (SELECT Criteria2 FROM dbo.SalesPriceList WHERE bpc.CustomerNumber = Criteria1 AND PriceListCode = 'T70' AND LatestFlag=1 AND rpl.currency=Currency)
+AND NOT EXISTS (SELECT Criteria2 FROM dbo.SalesPriceList WHERE bpc.CustomerNumber = Criteria1 AND itm.ProductReference =Criteria2 AND PriceListCode = 'T70' AND LatestFlag=1 AND rpl.currency=Currency)
 
 group by itm.ProductReference
 ,itm.Description1
@@ -198,6 +198,7 @@ group by itm.ProductReference
 ,BG.BuyingGroup
 ,EX.InverseRate
 ,dpl.discount
+
 
 UNION
 
@@ -245,7 +246,7 @@ group by sidd.Product
 ,bpc.StatisticalGroup3
 ,BG.BuyingGroup
 
-
+order by sku,site,category,BuyingGroup
 
 GO
 
