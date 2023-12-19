@@ -1,12 +1,14 @@
 USE [PowerBIWarehouse]
 GO
 
-/****** Object:  View [dbo].[AvercastWeeklyVolume]    Script Date: 15/12/2023 09:11:10 ******/
+/****** Object:  View [dbo].[AvercastWeeklyVolume]    Script Date: 19/12/2023 10:06:41 ******/
 SET ANSI_NULLS ON
 GO
 
 SET QUOTED_IDENTIFIER ON
 GO
+
+
 
 
 
@@ -17,31 +19,31 @@ WITH
 MonthlyQuant AS(
 SELECT
 AVI.Site,
-AVI.SKU,
-year(AVI.Date) 'Year',
-month(AVI.Date) 'Month', 
-SUM(AVI.Quantity) 'MonthlyQuant'
+AVI.Product,
+year(AVI.[end Date]) 'Year',
+month(AVI.[end Date]) 'Month', 
+SUM(AVI.[Planned qty.]) 'MonthlyQuant'
 FROM dbo.[AvercastVolumeInput] AVI
 Group by
 AVI.Site,
-AVI.SKU,
-year(AVI.Date),
-month(AVI.Date)
+AVI.Product,
+year(AVI.[end Date]),
+month(AVI.[end Date])
 ),
 
 MonthRemaining AS(
 SELECT
 AVI.Site,
-AVI.SKU,
-year(AVI.Date) 'Year',
-month(AVI.Date) 'Month', 
-count(AVI.SKU) 'NoWeeks'
-FROM dbo.[AvercastVolumeInput] AVI  WHERE year(AVI.Date)=year(getdate()) AND month(AVI.Date)=month(getdate()) AND AVI.Date>=dateadd(day,-7,getdate())
+AVI.Product,
+year(AVI.[end Date]) 'Year',
+month(AVI.[end Date]) 'Month', 
+count(AVI.Product) 'NoWeeks'
+FROM dbo.[AvercastVolumeInput] AVI  WHERE year(AVI.[end Date])=year(getdate()) AND month(AVI.[end Date])=month(getdate()) AND AVI.[end Date]>=dateadd(day,-7,getdate())
 Group by
 AVI.Site,
-AVI.SKU,
-year(AVI.Date),
-month(AVI.Date)
+AVI.Product,
+year(AVI.[end Date]),
+month(AVI.[end Date])
 ),
 
 DeliveredQuant AS(
@@ -61,29 +63,30 @@ month(d.ShipmentDate)
 
 
 SELECT
+'SOS' 'SOS',
 AVI.Site,
-AVI.SKU,
-AVI.Date,
---AVI.Quantity 'Avercast weekly Prediction',
+AVI.Product,
+AVI.[end Date],
+--AVI.[Planned qty.] 'Avercast weekly Prediction',
 --MQ.monthlyquant 'Total prediction for that month',
 --DQ.Shipped 'Total Shipped for that month (By shippment date)',
 --MR.noweeks 'No. weeks remaining in current month',
 
-CASE WHEN (year(AVI.Date)=year(getdate()) AND month(AVI.Date)>Month(getdate())) OR year(AVI.Date)>year(getdate()) THEN AVI.Quantity
-     WHEN AVI.Date>=DATEADD(day,-7,getdate()) AND year(AVI.Date)=year(getdate()) AND month(AVI.Date)=Month(getdate()) THEN (CASE WHEN MQ.monthlyquant>DQ.Shipped THEN (MQ.monthlyquant-ISNULL(DQ.Shipped,0))/MR.noweeks ELSE 0 END)
-	 WHEN AVI.Date<DATEADD(day,-7,getdate()) THEN DQ.Shipped
-	 ELSE 0 END  'Prediction',--- add an if actual is more than predicted then 0
+CASE WHEN (year(AVI.[end Date])=year(getdate()) AND month(AVI.[end Date])>Month(getdate())) OR year(AVI.[end Date])>year(getdate()) THEN AVI.[Planned qty.]
+     WHEN AVI.[end Date]>=DATEADD(day,-7,getdate()) AND year(AVI.[end Date])=year(getdate()) AND month(AVI.[end Date])=Month(getdate()) THEN CASE WHEN (MQ.monthlyquant-ISNULL(DQ.Shipped,0))/MR.noweeks<0 THEN 0 ELSE (MQ.monthlyquant-ISNULL(DQ.Shipped,0))/MR.noweeks END
+	 WHEN AVI.[end Date]<DATEADD(day,-7,getdate()) THEN DQ.Shipped
+	 ELSE 0 END  'Prediction',
 
-CASE WHEN (year(AVI.Date)=year(getdate()) AND month(AVI.Date)>Month(getdate())) OR year(AVI.Date)>year(getdate()) THEN 'Prediction' 
-     WHEN AVI.Date>=DATEADD(day,-7,getdate()) AND year(AVI.Date)=year(getdate()) AND month(AVI.Date)=Month(getdate()) THEN 'Prediction adjusted' 
-	 WHEN AVI.Date<DATEADD(day,-7,getdate()) THEN 'Actual'
-	 ELSE 'Error' END  'Type'
-
+--CASE WHEN (year(AVI.[end Date])=year(getdate()) AND month(AVI.[end Date])>Month(getdate())) OR year(AVI.[end Date])>year(getdate()) THEN 'Prediction' 
+  --   WHEN AVI.[end Date]>=DATEADD(day,-7,getdate()) AND year(AVI.[end Date])=year(getdate()) AND month(AVI.[end Date])=Month(getdate()) THEN 'Prediction adjusted' 
+	 --WHEN AVI.[end Date]<DATEADD(day,-7,getdate()) THEN 'Actual'
+	 --ELSE 'Error' END  'Type'
+'2' 'Purge Flag'
 
 FROM dbo.[AvercastVolumeInput] AVI
-LEFT JOIN MonthlyQuant MQ ON AVI.Site=MQ.Site AND AVI.SKU=MQ.SKU AND year(AVI.Date)= MQ.Year AND month(AVI.Date) = MQ.Month
-LEFT JOIN MonthRemaining MR ON AVI.Site=MR.Site AND AVI.SKU=MR.SKU AND year(AVI.Date)= MR.Year AND month(AVI.Date) = MR.Month
-LEFT JOIN DeliveredQuant DQ ON AVI.Site=DQ.ShipmentSite AND AVI.SKU=DQ.Product AND year(AVI.Date)= DQ.Year AND month(AVI.Date) = DQ.Month
+LEFT JOIN MonthlyQuant MQ ON AVI.Site=MQ.Site AND AVI.Product=MQ.Product AND year(AVI.[end Date])= MQ.Year AND month(AVI.[end Date]) = MQ.Month
+LEFT JOIN MonthRemaining MR ON AVI.Site=MR.Site AND AVI.Product=MR.Product AND year(AVI.[end Date])= MR.Year AND month(AVI.[end Date]) = MR.Month
+LEFT JOIN DeliveredQuant DQ ON AVI.Site=DQ.ShipmentSite AND AVI.Product=DQ.Product AND year(AVI.[end Date])= DQ.Year AND month(AVI.[end Date]) = DQ.Month
 
 GO
 
