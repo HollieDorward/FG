@@ -1,18 +1,16 @@
 USE [PowerBIWarehouse]
 GO
-
-/****** Object:  View [dbo].[AvercastPricesDetailTEST]    Script Date: 21/12/2023 15:02:03 ******/
+/****** Object:  StoredProcedure [ETL].[AvercastPriceDetail]    Script Date: 03/01/2024 11:54:43 ******/
 SET ANSI_NULLS ON
 GO
-
 SET QUOTED_IDENTIFIER ON
 GO
 
 
+ALTER PROCEDURE [ETL].[AvercastPriceDetail]
+AS
 
 
-ALTER VIEW [dbo].[AvercastPricesDetailTEST] AS
---CTEs
 
 WITH 
 
@@ -21,11 +19,11 @@ SELECT
 SUM(sidd.InvoicedQuantity) 'TotalQuant'
 ,sidd.Product
 ,sidd.SalesSite
-,bpc.StatisticalGroup1
+,bpc.BillToCustCategory
 ,BG.BuyingGroup
 
 FROM MES.SalesInvoiceDetail sidd
-INNER JOIN dim.Customer bpc ON sidd.BillToCustomer = bpc.CustomerNumber
+LEFT JOIN dim.Customer bpc ON sidd.BillToCustomer = bpc.CustomerNumber
 LEFT JOIN [dbo].[MainBuyingGroup] BG ON bpc.StatisticalGroup3 = BG.BuyingGroup
 INNER JOIN DIM.Product itm ON sidd.Product = itm.ProductReference
 
@@ -36,10 +34,10 @@ AND itm.productstatus <>'Obsolete'
 Group by
 sidd.Product
 ,sidd.SalesSite
-,bpc.StatisticalGroup1
+,bpc.BillToCustCategory
 ,BG.BuyingGroup
 
-), --fine. can't have currency in here because grouped with diff currencies
+),
 
 RetailPrice AS(
 
@@ -58,7 +56,7 @@ FROM (SELECT Criteria2
 			where PriceListCode = 'T20' and getdate() BETWEEN validitystartdate AND validityenddate) rpl
 
 INNER JOIN DIM.Product itm ON itm.ProductReference = rpl.Criteria1
-INNER JOIN dim.Customer bpc ON bpc.StatisticalGroup1 = rpl.Criteria2
+INNER JOIN dim.Customer bpc ON bpc.BillToCustCategory = rpl.Criteria2
 
 WHERE itm.productstatus <>'Obsolete'
 AND NOT EXISTS (SELECT Criteria2 FROM dbo.SalesPriceList WHERE bpc.CustomerNumber = Criteria1 AND PriceListCode = 'T70' AND getdate() BETWEEN validitystartdate AND validityenddate AND itm.ProductReference =Criteria2)
@@ -74,9 +72,11 @@ sidd.InvoicedQuantity
 ,sih.currency
 ,sidd.SalesSite
 ,sidd.BillToCustomer
+,sic.Soldto
 
 FROM MES.SalesInvoiceDetail sidd
 INNER JOIN MES.SalesInvoice sih on sidd.invoicenumber = sih.documentnumber
+Left join [dbo].[CostingSalesInvoice] sic on sidd.invoicenumber = sic.invoicenumber
 INNER JOIN dim.Customer bpc ON sidd.BillToCustomer = bpc.CustomerNumber
 LEFT JOIN [dbo].[MainBuyingGroup] BG ON bpc.StatisticalGroup3 = BG.BuyingGroup
 INNER JOIN DIM.Product itm ON sidd.Product = itm.ProductReference
@@ -87,6 +87,11 @@ AND itm.productstatus <>'Obsolete'
 
 )
 
+
+
+--INSERT INTO [dbo].[AvercastPricesDetailTESTTable]
+
+
 ------T70 items------ T70 is excl. TAX
 
 SELECT DISTINCT
@@ -94,7 +99,7 @@ itm.ProductReference 'SKU'
 ,bpc.CustomerNumber 'CustomerNumber'
 ,itm.Description1 'ItemDescription'
 ,PS.StockSite 'Site'
-,bpc.StatisticalGroup1 'Category'
+,bpc.BillToCustCategory 'Category'
 ,bpc.StatisticalGroup3 'BuyingGroup'
 ,BG.BuyingGroup 'GroupedBuyingGroup'
 ,ISNULL(Sum(sidd.InvoicedQuantity),0) 'VolumeRollingYear'
@@ -123,7 +128,7 @@ LEFT JOIN [dbo].[ProductSite] PS ON spl.Criteria2 = PS.Product
 LEFT JOIN Invoiced sidd ON spl.Criteria2 =sidd.Product AND spl.Criteria1 =sidd.BillToCustomer AND spl.Currency=sidd.Currency and sidd.SalesSite = PS.StockSite
 LEFT JOIN [dbo].[ExchangeRates] EX ON spl.currency = EX.SourceCurrency AND EX.LatestFlag=1 AND EX.Currency = 'GBP'
 LEFT JOIN [dbo].[MainBuyingGroup] BG ON bpc.StatisticalGroup3 = BG.BuyingGroup
-LEFT JOIN TotalQuant TQ ON itm.ProductReference = TQ.Product AND isnull(BG.BuyingGroup,'') = ISNULL(TQ.BuyingGroup,'') AND bpc.StatisticalGroup1 = TQ.StatisticalGroup1 AND PS.StockSite = TQ.SalesSite
+LEFT JOIN TotalQuant TQ ON itm.ProductReference = TQ.Product AND isnull(BG.BuyingGroup,'') = ISNULL(TQ.BuyingGroup,'') AND bpc.BillToCustCategory = TQ.BillToCustCategory AND PS.StockSite = TQ.SalesSite
 
 WHERE itm.productstatus <>'Obsolete'
 
@@ -132,7 +137,7 @@ GROUP BY
 itm.ProductReference
 ,itm.Description1
 ,PS.StockSite
-,bpc.StatisticalGroup1
+,bpc.BillToCustCategory
 ,spl.currency
 ,bpc.CustomerNumber
 ,bpc.StatisticalGroup3
@@ -150,7 +155,7 @@ itm.ProductReference 'SKU'
 ,bpc.BillToCustomer 'CustomerNumber'
 ,itm.Description1 'ItemDescription'
 ,PS.StockSite 'Site'
-,bpc.StatisticalGroup1 'Category'
+,bpc.BillToCustCategory 'Category'
 ,bpc.StatisticalGroup3 'BuyingGroup'
 ,BG.BuyingGroup 'GroupedBuyingGroup'
 --,sidd.InvoicedQuantity 'invoice volume'
@@ -176,7 +181,7 @@ FROM (SELECT Criteria2
 			FROM dbo.SalesPriceList      
 			where PriceListCode = 'T20' AND getdate() BETWEEN validitystartdate AND validityenddate Group by Criteria2,Criteria1,currency ) rpl 
 
-INNER JOIN dim.Customer bpc ON bpc.StatisticalGroup1 = rpl.Criteria2
+INNER JOIN dim.Customer bpc ON bpc.BillToCustCategory = rpl.Criteria2
 INNER JOIN DIM.Product itm ON rpl.Criteria1 = itm.ProductReference
 
 LEFT JOIN (SELECT Criteria2
@@ -185,14 +190,14 @@ LEFT JOIN (SELECT Criteria2
 			,max(ChargeDiscountValue) discount
 			,currency
 			FROM dbo.SalesPriceList      
-			where PriceListCode in('T40','T50') AND getdate() BETWEEN validitystartdate AND validityenddate Group by Criteria2,Criteria1,criteria3,currency ) dpl ON bpc.BillToCustomer = dpl.Criteria1 AND itm.StatisticalGroup2 = dpl.Criteria2 AND itm.StatisticalGroup3 = dpl.Criteria3
+			where PriceListCode in('T40','T50') AND getdate() BETWEEN validitystartdate AND validityenddate Group by Criteria2,Criteria1,criteria3,currency ) dpl ON bpc.CustomerNumber = dpl.Criteria1 AND itm.StatisticalGroup2 = dpl.Criteria2 AND itm.StatisticalGroup3 = dpl.Criteria3
 
 LEFT JOIN [dbo].[ProductSite] PS ON rpl.Criteria1 = PS.Product 
-LEFT JOIN Invoiced sidd ON rpl.Criteria1 =sidd.Product AND bpc.BillToCustomer =sidd.BillToCustomer AND rpl.Currency=sidd.Currency and sidd.SalesSite = PS.StockSite
+LEFT JOIN Invoiced sidd ON rpl.Criteria1 =sidd.Product AND bpc.CustomerNumber =sidd.SoldTo AND rpl.Currency=sidd.Currency and sidd.SalesSite = PS.StockSite
 LEFT JOIN dbo.TaxRates TRN ON itm.taxlevel=TRN.ProductTaxLevel AND bpc.TaxRule=TRN.BPtaxRule AND TRN.[SITE]=sidd.SalesSite AND TRN.EnabledFlag='y'
 LEFT JOIN [dbo].[ExchangeRates] EX ON rpl.currency = EX.SourceCurrency AND EX.LatestFlag=1 AND EX.Currency = 'GBP'
 LEFT JOIN [dbo].[MainBuyingGroup] BG ON bpc.StatisticalGroup3 = BG.BuyingGroup
-LEFT JOIN TotalQuant TQ ON itm.ProductReference = TQ.Product AND isnull(BG.BuyingGroup,'') = ISNULL(TQ.BuyingGroup,'') AND bpc.StatisticalGroup1 = TQ.StatisticalGroup1 AND PS.StockSite = TQ.SalesSite
+LEFT JOIN TotalQuant TQ ON itm.ProductReference = TQ.Product AND isnull(BG.BuyingGroup,'') = ISNULL(TQ.BuyingGroup,'') AND bpc.BillToCustCategory = TQ.BillToCustCategory AND PS.StockSite = TQ.SalesSite
 
 WHERE itm.productstatus <>'Obsolete'
 AND NOT EXISTS (SELECT Criteria2 FROM dbo.SalesPriceList WHERE bpc.CustomerNumber = Criteria1 AND itm.ProductReference =Criteria2 AND PriceListCode = 'T70' AND getdate() BETWEEN validitystartdate AND validityenddate AND rpl.currency=Currency)
@@ -200,7 +205,7 @@ AND NOT EXISTS (SELECT Criteria2 FROM dbo.SalesPriceList WHERE bpc.CustomerNumbe
 group by itm.ProductReference
 ,itm.Description1
 ,PS.StockSite
-,bpc.StatisticalGroup1
+,bpc.BillToCustCategory
 ,rpl.currency
 ,TRN.Rate
 ,bpc.BillToCustomer
@@ -208,6 +213,8 @@ group by itm.ProductReference
 ,BG.BuyingGroup
 ,EX.InverseRate
 ,dpl.discount
+
+having ISNULL(Sum(sidd.InvoicedQuantity)/MAX(TQ.TotalQuant),0)>1
 
 
 UNION
@@ -219,7 +226,7 @@ itm.ProductReference 'SKU'
 ,bpc.BillToCustomer 'CustomerNumber'
 ,itm.Description1 'ItemDescription'
 ,PS.StockSite 'Site'
-,bpc.StatisticalGroup1 'Category'
+,bpc.BillToCustCategory 'Category'
 ,bpc.StatisticalGroup3 'BuyingGroup'
 ,BG.BuyingGroup 'GroupedBuyingGroup'
 ,ISNULL(Sum(sidd.InvoicedQuantity),0) 'VolumeRollingYear'
@@ -250,7 +257,7 @@ LEFT JOIN [dbo].[ProductSite] PS ON tpl.Criteria1 = PS.Product
 LEFT JOIN Invoiced sidd ON tpl.Criteria1 =sidd.Product AND bpc.BillToCustomer =sidd.BillToCustomer AND tpl.Currency=sidd.Currency and sidd.SalesSite = PS.StockSite
 LEFT JOIN [dbo].[ExchangeRates] EX ON tpl.currency = EX.SourceCurrency AND EX.LatestFlag=1 AND EX.Currency = 'GBP'
 LEFT JOIN [dbo].[MainBuyingGroup] BG ON bpc.StatisticalGroup3 = BG.BuyingGroup
-LEFT JOIN TotalQuant TQ ON itm.ProductReference = TQ.Product AND isnull(BG.BuyingGroup,'') = ISNULL(TQ.BuyingGroup,'') AND bpc.StatisticalGroup1 = TQ.StatisticalGroup1 AND PS.StockSite = TQ.SalesSite
+LEFT JOIN TotalQuant TQ ON itm.ProductReference = TQ.Product AND isnull(BG.BuyingGroup,'') = ISNULL(TQ.BuyingGroup,'') AND bpc.BillToCustCategory = TQ.BillToCustCategory AND PS.StockSite = TQ.SalesSite
 
 WHERE itm.productstatus <>'Obsolete'
 AND NOT EXISTS (SELECT Criteria2 FROM dbo.SalesPriceList WHERE bpc.CustomerNumber = Criteria1 AND itm.ProductReference =Criteria2 AND PriceListCode = 'T70' AND getdate() BETWEEN validitystartdate AND validityenddate AND tpl.currency=Currency)
@@ -259,7 +266,7 @@ AND NOT EXISTS (SELECT Criteria1,CustomerNumber FROM RetailPrice WHERE itm.Produ
 group by itm.ProductReference
 ,itm.Description1
 ,PS.StockSite
-,bpc.StatisticalGroup1
+,bpc.BillToCustCategory
 ,tpl.currency
 ,bpc.BillToCustomer
 ,bpc.StatisticalGroup3
@@ -276,7 +283,7 @@ sidd.Product 'SKU'
 ,sidd.BillToCustomer 'CustomerNuber'
 ,itm.Description1 'ItemDescription'
 ,sidd.SalesSite 'Site'
-,bpc.StatisticalGroup1 'Category'
+,bpc.BillToCustCategory 'Category'
 ,bpc.StatisticalGroup3 'BuyingGroup'
 ,BG.BuyingGroup 'GroupedBuyingGroup'
 ,Sum(sidd.InvoicedQuantity) 'VolumeRollingYear'
@@ -296,7 +303,7 @@ INNER JOIN MES.SalesInvoice sih on sidd.invoicenumber = sih.documentnumber
 INNER JOIN DIM.Product itm ON sidd.Product = itm.ProductReference
 INNER JOIN dim.Customer bpc ON sidd.BillToCustomer = bpc.CustomerNumber
 LEFT JOIN [dbo].[MainBuyingGroup] BG ON bpc.StatisticalGroup3 = BG.BuyingGroup
-LEFT JOIN TotalQuant TQ ON itm.ProductReference = TQ.Product AND isnull(BG.BuyingGroup,'') = ISNULL(TQ.BuyingGroup,'') AND bpc.StatisticalGroup1 = TQ.StatisticalGroup1 AND sidd.SalesSite = TQ.SalesSite
+LEFT JOIN TotalQuant TQ ON itm.ProductReference = TQ.Product AND isnull(BG.BuyingGroup,'') = ISNULL(TQ.BuyingGroup,'') AND bpc.BillToCustCategory = TQ.BillToCustCategory AND sidd.SalesSite = TQ.SalesSite
 
 WHERE sidd.invoicedate>  dateadd(year,-1,getdate())
 AND sidd.InvoicedQuantity>0
@@ -309,14 +316,11 @@ AND NOT EXISTS (SELECT Criteria1,Criteria2 FROM dbo.SalesPriceList WHERE itm.Pro
 group by sidd.Product
 ,itm.Description1
 ,sidd.SalesSite
-,bpc.StatisticalGroup1
+,bpc.BillToCustCategory
 ,sih.currency
 ,sidd.BillToCustomer
 ,bpc.StatisticalGroup3
 ,BG.BuyingGroup
 
-order by sku,site,category,BuyingGroup
-
-GO
 
 
