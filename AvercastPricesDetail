@@ -1,6 +1,6 @@
 USE [PowerBIWarehouse]
 GO
-/****** Object:  StoredProcedure [ETL].[AvercastPriceDetail]    Script Date: 03/01/2024 11:54:43 ******/
+/****** Object:  StoredProcedure [ETL].[AvercastPriceDetail]    Script Date: 05/01/2024 09:09:01 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -89,10 +89,10 @@ AND itm.productstatus <>'Obsolete'
 
 
 
---INSERT INTO [dbo].[AvercastPricesDetailTESTTable]
+INSERT INTO [dbo].[AvercastPricesDetailTESTTable]
 
 
-------T70 items------ T70 is excl. TAX
+----T70 items------ T70 is excl. TAX
 
 SELECT DISTINCT
 itm.ProductReference 'SKU'
@@ -104,7 +104,7 @@ itm.ProductReference 'SKU'
 ,BG.BuyingGroup 'GroupedBuyingGroup'
 ,ISNULL(Sum(sidd.InvoicedQuantity),0) 'VolumeRollingYear'
 ,ISNULL(MAX(TQ.TotalQuant),0) 'GroupVolume'
-,ISNULL(Sum(sidd.InvoicedQuantity)/MAX(TQ.TotalQuant),0) 'PercentageOfGroup'
+,round(ISNULL(Sum(sidd.InvoicedQuantity)/MAX(TQ.TotalQuant),0),6) 'PercentageOfGroup'
 , 0 'Discount'
 ,spl.currency 'Currency'
 ,MIN(spl.price) 'PriceListPrice(ex.TAX)'
@@ -131,7 +131,7 @@ LEFT JOIN [dbo].[MainBuyingGroup] BG ON bpc.StatisticalGroup3 = BG.BuyingGroup
 LEFT JOIN TotalQuant TQ ON itm.ProductReference = TQ.Product AND isnull(BG.BuyingGroup,'') = ISNULL(TQ.BuyingGroup,'') AND bpc.BillToCustCategory = TQ.BillToCustCategory AND PS.StockSite = TQ.SalesSite
 
 WHERE itm.productstatus <>'Obsolete'
-
+--and itm.ProductReference ='10002'
 
 GROUP BY 
 itm.ProductReference
@@ -161,7 +161,7 @@ itm.ProductReference 'SKU'
 --,sidd.InvoicedQuantity 'invoice volume'
 ,ISNULL(Sum(sidd.InvoicedQuantity),0) 'VolumeRollingYear'
 ,ISNULL(MAX(TQ.TotalQuant),0) 'GroupVolume'
-,ISNULL(Sum(sidd.InvoicedQuantity)/MAX(TQ.TotalQuant),0) 'PercentageOfGroup'
+,round(ISNULL(Sum(sidd.InvoicedQuantity)/MAX(TQ.TotalQuant),0),6) 'PercentageOfGroup'
 ,ISNULL(dpl.discount,0) 'Discount'
 ,rpl.currency 'Currency'
 ,Min(rpl.price)/(1+(ISNULL(TRN.Rate,0)/100)) 'PriceListPrice (ex.TAX)'
@@ -201,6 +201,7 @@ LEFT JOIN TotalQuant TQ ON itm.ProductReference = TQ.Product AND isnull(BG.Buyin
 
 WHERE itm.productstatus <>'Obsolete'
 AND NOT EXISTS (SELECT Criteria2 FROM dbo.SalesPriceList WHERE bpc.CustomerNumber = Criteria1 AND itm.ProductReference =Criteria2 AND PriceListCode = 'T70' AND getdate() BETWEEN validitystartdate AND validityenddate AND rpl.currency=Currency)
+--and itm.ProductReference ='10002'
 
 group by itm.ProductReference
 ,itm.Description1
@@ -214,7 +215,7 @@ group by itm.ProductReference
 ,EX.InverseRate
 ,dpl.discount
 
-having ISNULL(Sum(sidd.InvoicedQuantity)/MAX(TQ.TotalQuant),0)>1
+--having ISNULL(Sum(sidd.InvoicedQuantity)/MAX(TQ.TotalQuant),0)>1
 
 
 UNION
@@ -231,7 +232,7 @@ itm.ProductReference 'SKU'
 ,BG.BuyingGroup 'GroupedBuyingGroup'
 ,ISNULL(Sum(sidd.InvoicedQuantity),0) 'VolumeRollingYear'
 ,ISNULL(MAX(TQ.TotalQuant),0) 'GroupVolume'
-,ISNULL(Sum(sidd.InvoicedQuantity)/MAX(TQ.TotalQuant),0) 'PercentageOfGroup'
+,round(ISNULL(Sum(sidd.InvoicedQuantity)/MAX(TQ.TotalQuant),0),6) 'PercentageOfGroup'
 ,0 'Discount' --no discount applied to trade price
 ,tpl.currency 'Currency'
 ,Min(tpl.price) 'PriceListPrice (ex.TAX)'
@@ -262,6 +263,7 @@ LEFT JOIN TotalQuant TQ ON itm.ProductReference = TQ.Product AND isnull(BG.Buyin
 WHERE itm.productstatus <>'Obsolete'
 AND NOT EXISTS (SELECT Criteria2 FROM dbo.SalesPriceList WHERE bpc.CustomerNumber = Criteria1 AND itm.ProductReference =Criteria2 AND PriceListCode = 'T70' AND getdate() BETWEEN validitystartdate AND validityenddate AND tpl.currency=Currency)
 AND NOT EXISTS (SELECT Criteria1,CustomerNumber FROM RetailPrice WHERE itm.ProductReference = Criteria1 AND bpc.CustomerNumber = CustomerNumber  AND sidd.currency=Currency )
+--and itm.ProductReference ='10002'
 
 group by itm.ProductReference
 ,itm.Description1
@@ -288,7 +290,7 @@ sidd.Product 'SKU'
 ,BG.BuyingGroup 'GroupedBuyingGroup'
 ,Sum(sidd.InvoicedQuantity) 'VolumeRollingYear'
 ,MAX(TQ.TotalQuant) 'GroupVolume'
-,Sum(sidd.InvoicedQuantity)/MAX(TQ.TotalQuant) 'PercentageOfGroup'
+,round(Sum(sidd.InvoicedQuantity)/MAX(TQ.TotalQuant),6) 'PercentageOfGroup'
 ,AVG(sidd.discountchargevalue) 'AverageDiscount'
 ,sih.currency 'Currency'
 ,AVG(sidd.GrossPriceCurr) 'PriceListPrice(ex.TAX)'
@@ -311,7 +313,7 @@ AND itm.productstatus <>'Obsolete'
 AND NOT EXISTS (SELECT Criteria1,Criteria2 FROM dbo.SalesPriceList WHERE bpc.CustomerNumber = Criteria1 AND itm.ProductReference = Criteria2 AND PriceListCode = 'T70' AND getdate() BETWEEN validitystartdate AND validityenddate AND sih.currency=Currency)
 AND NOT EXISTS (SELECT Criteria1,CustomerNumber FROM RetailPrice WHERE itm.ProductReference = Criteria1 AND bpc.CustomerNumber = CustomerNumber  AND sih.currency=Currency )
 AND NOT EXISTS (SELECT Criteria1,Criteria2 FROM dbo.SalesPriceList WHERE itm.ProductReference = Criteria1 AND bpc.StatisticalGroup4 = Criteria2 AND PriceListCode = 'T20D' AND getdate() BETWEEN validitystartdate AND validityenddate AND sih.currency=Currency)
-
+--and itm.ProductReference ='10002'
 
 group by sidd.Product
 ,itm.Description1
