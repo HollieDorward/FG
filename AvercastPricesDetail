@@ -93,7 +93,6 @@ AND NOT EXISTS (SELECT Criteria2 FROM dbo.SalesPriceList WHERE bpc.BillToCustome
 group by bpc.BillToCustomer,T20.Criteria1,T20.Criteria2,T20.currency, itm.Description1, PS.StockSite,bpc.BillToCustCategory, BG.BuyingGroup,itm.TaxLevel
 ,bpc.TaxRule 
 
-
 )
 
 ,T40T50 AS (
@@ -115,6 +114,33 @@ Group by bpc.billtocustomer, Itm.ProductReference
 
 )
 
+,T20D AS(
+
+SELECT
+bpc.BillToCustomer 'CustomerNumber'
+,T20D.Criteria1 'ProductNumber'
+,bpc.BillToCustCategory 'Category'
+,AVG(T20D.price) 'Price'
+,T20D.currency
+,itm.Description1 'Product'
+,PS.StockSite 'Site'
+,ISNULL(BG.BuyingGroup,'') 'GroupedBuyingGroup'
+FROM (SELECT Criteria1
+			,Criteria2
+			,price
+			,currency
+			FROM dbo.SalesPriceList      
+			where PriceListCode = 'T20D' and getdate() BETWEEN validitystartdate AND validityenddate) T20D
+INNER JOIN DIM.Product itm ON itm.ProductReference = T20D.Criteria1
+LEFT JOIN [dbo].[ProductSite] PS ON  PS.Product = T20D.Criteria1
+INNER JOIN dim.Customer bpc ON bpc.StatisticalGroup4 = T20D.Criteria2
+LEFT JOIN [dbo].[MainBuyingGroup] BG ON bpc.StatisticalGroup3 = BG.BuyingGroup
+WHERE itm.productstatus <>'Obsolete'
+AND NOT EXISTS (SELECT Criteria2 FROM dbo.SalesPriceList WHERE bpc.BillToCustomer = Criteria1 AND T20D.Criteria1 =Criteria2 AND PriceListCode = 'T70' AND getdate() BETWEEN validitystartdate AND validityenddate AND T20D.currency=Currency)
+AND NOT EXISTS (SELECT Criteria1 FROM dbo.SalesPriceList WHERE T20D.Criteria1 = Criteria1 AND bpc.BillToCustCategory = Criteria2  AND T20D.currency=Currency )
+Group by bpc.BillToCustomer,T20D.Criteria1,bpc.BillToCustCategory,T20D.currency,itm.Description1,PS.StockSite,BG.BuyingGroup
+
+)
 
 
 ----T70 items------ T70 is excl. TAX
