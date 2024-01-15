@@ -1,0 +1,106 @@
+USE [live]
+GO
+
+/****** Object:  Table [MFS].[SORDERP]    Script Date: 15/01/2024 14:14:30 ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [MFS].[SORDERP](
+	[UPDTICK_0] [int] NOT NULL,
+	[SOHNUM_0] [nvarchar](20) NOT NULL,
+	[SOPLIN_0] [int] NOT NULL,
+	[SOPSEQ_0] [int] NOT NULL,
+	[CPY_0] [nvarchar](5) NOT NULL,
+	[SOHCAT_0] [tinyint] NOT NULL,
+	[STRDAT_0] [datetime] NOT NULL,
+	[ENDDAT_0] [datetime] NOT NULL,
+	[BPCORD_0] [nvarchar](15) NOT NULL,
+	[BPAADD_0] [nvarchar](5) NOT NULL,
+	[CNDNAM_0] [nvarchar](15) NOT NULL,
+	[BPCINV_0] [nvarchar](15) NOT NULL,
+	[STOFCY_0] [nvarchar](5) NOT NULL,
+	[SALFCY_0] [nvarchar](5) NOT NULL,
+	[ITMREF_0] [nvarchar](20) NOT NULL,
+	[ITMDES1_0] [nvarchar](30) NOT NULL,
+	[ITMDES_0] [nvarchar](30) NOT NULL,
+	[ITMREFBPC_0] [nvarchar](20) NOT NULL,
+	[VACITM_0] [nvarchar](5) NOT NULL,
+	[VACITM_1] [nvarchar](5) NOT NULL,
+	[VACITM_2] [nvarchar](5) NOT NULL,
+	[REP1_0] [nvarchar](15) NOT NULL,
+	[REP2_0] [nvarchar](15) NOT NULL,
+	[REPRAT1_0] [numeric](8, 3) NOT NULL,
+	[REPRAT2_0] [numeric](8, 3) NOT NULL,
+	[REPCOE_0] [numeric](6, 3) NOT NULL,
+	[GROPRI_0] [numeric](19, 5) NOT NULL,
+	[PRIREN_0] [smallint] NOT NULL,
+	[NETPRI_0] [numeric](19, 5) NOT NULL,
+	[NETPRINOT_0] [numeric](19, 5) NOT NULL,
+	[NETPRIATI_0] [numeric](19, 5) NOT NULL,
+	[PFM_0] [numeric](27, 13) NOT NULL,
+	[CPRPRI_0] [numeric](19, 5) NOT NULL,
+	[DISCRGVAL1_0] [numeric](19, 5) NOT NULL,
+	[DISCRGVAL2_0] [numeric](19, 5) NOT NULL,
+	[DISCRGVAL3_0] [numeric](19, 5) NOT NULL,
+	[DISCRGVAL4_0] [numeric](19, 5) NOT NULL,
+	[DISCRGVAL5_0] [numeric](19, 5) NOT NULL,
+	[DISCRGVAL6_0] [numeric](19, 5) NOT NULL,
+	[DISCRGVAL7_0] [numeric](28, 8) NOT NULL,
+	[DISCRGVAL8_0] [numeric](28, 8) NOT NULL,
+	[DISCRGVAL9_0] [numeric](28, 8) NOT NULL,
+	[DISCRGREN1_0] [smallint] NOT NULL,
+	[DISCRGREN2_0] [smallint] NOT NULL,
+	[DISCRGREN3_0] [smallint] NOT NULL,
+	[DISCRGREN4_0] [smallint] NOT NULL,
+	[DISCRGREN5_0] [smallint] NOT NULL,
+	[DISCRGREN6_0] [smallint] NOT NULL,
+	[DISCRGREN7_0] [smallint] NOT NULL,
+	[DISCRGREN8_0] [smallint] NOT NULL,
+	[DISCRGREN9_0] [smallint] NOT NULL,
+	[VAT_0] [nvarchar](5) NOT NULL,
+	[VAT_1] [nvarchar](5) NOT NULL,
+	[VAT_2] [nvarchar](5) NOT NULL,
+	[CLCAMT1_0] [numeric](27, 13) NOT NULL,
+	[CLCAMT2_0] [numeric](27, 13) NOT NULL,
+	[SAU_0] [nvarchar](3) NOT NULL,
+	[STU_0] [nvarchar](3) NOT NULL,
+	[SAUSTUCOE_0] [numeric](18, 7) NOT NULL,
+	[TSICOD_0] [nvarchar](20) NOT NULL,
+	[TSICOD_1] [nvarchar](20) NOT NULL,
+	[TSICOD_2] [nvarchar](20) NOT NULL,
+	[TSICOD_3] [nvarchar](20) NOT NULL,
+	[TSICOD_4] [nvarchar](20) NOT NULL,
+	[SOQSTA_0] [tinyint] NOT NULL,
+	[LINTYP_0] [tinyint] NOT NULL,
+	[FOCFLG_0] [tinyint] NOT NULL,
+	[ORILIN_0] [int] NOT NULL,
+	[SQHNUM_0] [nvarchar](20) NOT NULL,
+	[CONNUM_0] [nvarchar](20) NOT NULL,
+	[SQDLIN_0] [int] NOT NULL,
+	[LINREVNUM_0] [smallint] NOT NULL,
+	[EXPNUM_0] [int] NOT NULL,
+	[SSTCOD_0] [nvarchar](20) NOT NULL,
+	[BPCSALPRI_0] [numeric](19, 5) NOT NULL,
+	[CREUSR_0] [nvarchar](5) NOT NULL,
+	[CREDAT_0] [datetime] NOT NULL,
+	[UPDUSR_0] [nvarchar](5) NOT NULL,
+	[UPDDAT_0] [datetime] NOT NULL,
+	[CREDATTIM_0] [datetime] NOT NULL,
+	[UPDDATTIM_0] [datetime] NOT NULL,
+	[AUUID_0] [binary](16) NOT NULL,
+	[INVCND_0] [nvarchar](20) NOT NULL,
+	[ROWID] [numeric](38, 0) IDENTITY(1,1) NOT NULL,
+ CONSTRAINT [SORDERP_ROWID] PRIMARY KEY NONCLUSTERED 
+(
+	[ROWID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+ALTER TABLE [MFS].[SORDERP] ADD  DEFAULT ((1)) FOR [UPDTICK_0]
+GO
+
+
