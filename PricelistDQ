@@ -1,0 +1,168 @@
+USE [PowerBIWarehouse]
+GO
+
+/****** Object:  StoredProcedure [ETL].[AvercastPriceDetail]    Script Date: 11/01/2024 16:32:00 ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+CREATE view [ETL].[PricelistDQ]
+AS
+
+
+WITH 
+
+InvoicedFY AS(
+
+SELECT
+AVG(sidd.GrossPrice) 'GrossPrice'
+,AVG(sidd.NetPrice) 'NetPrice'
+,AVG(sidd.DiscountChargeValue) 'DiscountChargeValue'
+,FY.FiscalYear
+,MFY.LatestFY
+,sidd.Product 'ProductNumber'
+,itm.Description1 'Product'
+,sidd.SalesSite 'Site'
+,bpc.BillToCustomer
+,bpc.BillToCustCategory 'Category'
+,ISNULL(BG.BuyingGroup,'') 'GroupedBuyingGroup'
+FROM MES.SalesInvoiceDetail sidd
+INNER JOIN dim.Customer bpc ON sidd.BillToCustomer = bpc.CustomerNumber
+LEFT JOIN [dbo].[MainBuyingGroup] BG ON bpc.BillToCustomer = BG.billtonumber
+INNER JOIN DIM.Product itm ON sidd.Product = itm.ProductReference
+LEFT JOIN dbo.Dates FY ON FY.Date = sidd.invoicedate
+LEFT JOIN (SELECT MAX(FY.FiscalYear)'LatestFY',sidd.Product,sidd.SalesSite,bpc.BillToCustomer FROM MES.SalesInvoiceDetail sidd LEFT JOIN dim.Customer bpc ON sidd.BillToCustomer = bpc.CustomerNumber LEFT JOIN dbo.Dates FY ON FY.Date = sidd.invoicedate AND sidd.InvoicedQuantity>0 GROUP BY sidd.Product,sidd.SalesSite,bpc.BillToCustomer) MFY ON MFY.Product = sidd.Product AND MFY.BillToCustomer = bpc.BillToCustomer AND MFY.SalesSite = sidd.SalesSite
+WHERE sidd.invoicedate>  dateadd(year,-1,getdate())
+AND FY.FiscalYear = MFY.LatestFY
+AND sidd.InvoicedQuantity>0
+AND itm.productstatus <>'Obsolete'
+Group by sidd.Product,sidd.SalesSite,bpc.BillToCustomer,BG.BuyingGroup,FY.FiscalYear,itm.Description1,bpc.BillToCustCategory,MFY.LatestFY
+
+)
+
+
+---T70---
+
+SELECT
+T70.Criteria1 'CustomerNumber'
+,bpc.customername
+,bpc.billtocustomer
+,bpc.billtocustomername
+,bpc.BillToCustCategory 'Category'
+,bpc.statisticalgroup3 'BuyingGroup'
+,bpc.statisticalgroup4 'CustomerGroup'
+,T70.Criteria2 'ProductNumber'
+,itm.Description1 'Product'
+,itm.statisticalgroup2 'ProductBrand'
+,itm.statisticalgroup3 'ProductType'
+,T70.Currency
+,T70.price
+,NULL 'Discount'
+FROM (SELECT Criteria1
+			,Criteria2
+			,price
+			,currency
+			FROM dbo.SalesPriceList      
+			where PriceListCode = 'T70' and getdate() BETWEEN validitystartdate AND validityenddate) T70
+INNER JOIN DIM.Product itm ON itm.ProductReference = T70.Criteria2
+INNER JOIN dim.Customer bpc ON bpc.customernumber = T70.Criteria1
+UNION
+
+---T20---
+
+SELECT
+bpc.BillToCustomer 'CustomerNumber'
+,bpc.billtocustomername 'CustomerName'
+,bpc.billtocustomer
+,bpc.billtocustomername
+,T20.Criteria2 'Category'
+,bpc.statisticalgroup3 'BuyingGroup'
+,bpc.statisticalgroup4 'CustomerGroup'
+,T20.Criteria1 'ProductNumber'
+,itm.Description1 'Product'
+,itm.statisticalgroup2 'ProductBrand'
+,itm.statisticalgroup3 'ProductType'
+,T20.Currency
+,T20.price
+,NULL 'Discount'
+FROM (SELECT Criteria1
+			,Criteria2
+			,price
+			,currency
+			FROM dbo.SalesPriceList      
+			where PriceListCode = 'T20' and getdate() BETWEEN validitystartdate AND validityenddate) T20
+INNER JOIN DIM.Product itm ON itm.ProductReference = T20.Criteria1
+INNER JOIN dim.Customer bpc ON bpc.BillToCustCategory = T20.Criteria2
+
+WHERE NOT EXISTS (SELECT Criteria2 FROM dbo.SalesPriceList WHERE bpc.BillToCustomer = Criteria1 AND criteria2 = T20.criteria1 And PriceListCode = 'T70' AND getdate() BETWEEN validitystartdate AND validityenddate AND T20.Currency=Currency)
+
+UNION
+
+---T20D---
+
+SELECT 
+T70.Criteria1 'CustomerNumber'
+,bpc.customername
+,bpc.billtocustomer
+,bpc.billtocustomername
+,bpc.BillToCustCategory 'Category'
+,bpc.statisticalgroup3 'BuyingGroup'
+,bpc.statisticalgroup4 'CustomerGroup'
+,T70.Criteria2 'ProductNumber'
+,itm.Description1 'Product'
+,itm.statisticalgroup2 'ProductBrand'
+,itm.statisticalgroup3 'ProductType'
+,T70.Currency
+,T70.price
+,NULL 'Discount'
+
+bpc.billtocustomer 'CustomerNumber'
+,Itm.ProductReference 'ProductNumber'
+,AVG(T40T50.ChargeDiscountValue) 'Discount'
+FROM (SELECT Criteria1
+			,Criteria2
+			,Criteria3
+			,ChargeDiscountValue
+			FROM dbo.SalesPriceList      
+			where PriceListCode in('T40','T50') AND getdate() BETWEEN validitystartdate AND validityenddate) T40T50
+INNER JOIN DIM.Product itm ON itm.StatisticalGroup2 = T40T50.Criteria2 AND itm.StatisticalGroup3 = T40T50.Criteria3
+INNER JOIN DIM.Customer bpc ON T40T50.Criteria1 = bpc.customernumber
+WHERE itm.productstatus <>'Obsolete'
+Group by bpc.billtocustomer, Itm.ProductReference
+
+UNION
+
+SELECT
+bpc.BillToCustomer 'CustomerNumber'
+,T20D.Criteria1 'ProductNumber'
+,bpc.BillToCustCategory 'Category'
+,CASE WHEN T20D.Currency='GBP' THEN AVG(T20D.price)
+                              ELSE AVG(T20D.price)/EX.InverseRate END 'Price'
+,itm.Description1 'Product'
+,PS.StockSite 'Site'
+,ISNULL(BG.BuyingGroup,'') 'GroupedBuyingGroup'
+FROM (SELECT Criteria1
+			,Criteria2
+			,price
+			,currency
+			FROM dbo.SalesPriceList      
+			where PriceListCode = 'T20D' and getdate() BETWEEN validitystartdate AND validityenddate) T20D
+INNER JOIN DIM.Product itm ON itm.ProductReference = T20D.Criteria1
+LEFT JOIN [dbo].[ProductSite] PS ON  PS.Product = T20D.Criteria1
+INNER JOIN dim.Customer bpc ON bpc.StatisticalGroup4 = T20D.Criteria2
+LEFT JOIN [dbo].[MainBuyingGroup] BG ON bpc.BillToCustomer = BG.billtonumber
+LEFT JOIN [dbo].[ExchangeRates] EX ON T20D.currency = EX.SourceCurrency AND EX.LatestFlag=1 AND EX.Currency = 'GBP'
+WHERE itm.productstatus <>'Obsolete'
+AND NOT EXISTS (SELECT Criteria2 FROM dbo.SalesPriceList WHERE bpc.BillToCustomer = Criteria1 AND criteria2=T20D.Criteria1 AND PriceListCode = 'T70' AND getdate() BETWEEN validitystartdate AND validityenddate AND T20D.currency=Currency)
+AND NOT EXISTS (SELECT Criteria1 FROM dbo.SalesPriceList WHERE T20D.Criteria1 = Criteria1  AND PriceListCode = 'T20' AND getdate() BETWEEN validitystartdate AND validityenddate AND T20D.currency=Currency )
+Group by bpc.BillToCustomer,T20D.Criteria1,bpc.BillToCustCategory,T20D.currency,itm.Description1,PS.StockSite,BG.BuyingGroup,EX.InverseRate
+
+
+
+
+GO
+
+
