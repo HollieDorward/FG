@@ -1,0 +1,94 @@
+USE [live]
+GO
+
+/****** Object:  Table [MFS].[SORDERC]    Script Date: 15/01/2024 13:59:28 ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [MFS].[SORDERC](
+	[UPDTICK_0] [int] NOT NULL,
+	[SOHNUM_0] [nvarchar](20) NOT NULL,
+	[SOPLIN_0] [int] NOT NULL,
+	[CPY_0] [nvarchar](5) NOT NULL,
+	[SALFCY_0] [nvarchar](5) NOT NULL,
+	[BPCORD_0] [nvarchar](15) NOT NULL,
+	[BPAADD_0] [nvarchar](5) NOT NULL,
+	[ITMREF_0] [nvarchar](20) NOT NULL,
+	[ITMDES1_0] [nvarchar](30) NOT NULL,
+	[ITMDES_0] [nvarchar](30) NOT NULL,
+	[ITMREFBPC_0] [nvarchar](20) NOT NULL,
+	[ITMDESBPC_0] [nvarchar](30) NOT NULL,
+	[ECCVALMAJ_0] [nvarchar](10) NOT NULL,
+	[ECCVALMIN_0] [nvarchar](10) NOT NULL,
+	[CUSORDREF_0] [nvarchar](20) NOT NULL,
+	[STOFCY_0] [nvarchar](5) NOT NULL,
+	[USEPLC_0] [nvarchar](30) NOT NULL,
+	[PLI_0] [nvarchar](6) NOT NULL,
+	[VLYDATITM_0] [datetime] NOT NULL,
+	[VACITM_0] [nvarchar](5) NOT NULL,
+	[VACITM_1] [nvarchar](5) NOT NULL,
+	[VACITM_2] [nvarchar](5) NOT NULL,
+	[SSTCOD_0] [nvarchar](20) NOT NULL,
+	[VAT_0] [nvarchar](5) NOT NULL,
+	[VAT_1] [nvarchar](5) NOT NULL,
+	[VAT_2] [nvarchar](5) NOT NULL,
+	[VACBPR_0] [nvarchar](5) NOT NULL,
+	[EXTAMT_0] [numeric](27, 13) NOT NULL,
+	[CPLAMT_0] [numeric](27, 13) NOT NULL,
+	[SAU_0] [nvarchar](3) NOT NULL,
+	[STU_0] [nvarchar](3) NOT NULL,
+	[SAUSTUCOE_0] [numeric](18, 7) NOT NULL,
+	[ORDQTYCUM_0] [numeric](28, 13) NOT NULL,
+	[DLVQTYCUM_0] [numeric](28, 13) NOT NULL,
+	[EXTQTY_0] [numeric](28, 13) NOT NULL,
+	[EARQTY_0] [numeric](28, 13) NOT NULL,
+	[EARDAT_0] [datetime] NOT NULL,
+	[EARHOU_0] [nvarchar](6) NOT NULL,
+	[EARQTYCUS_0] [numeric](28, 13) NOT NULL,
+	[EARDATCUS_0] [datetime] NOT NULL,
+	[EARHOUCUS_0] [nvarchar](6) NOT NULL,
+	[CUMDATEAR_0] [datetime] NOT NULL,
+	[FIMHOR_0] [smallint] NOT NULL,
+	[DSPPRC_0] [smallint] NOT NULL,
+	[DSPPRC_1] [smallint] NOT NULL,
+	[DSPPRC_2] [smallint] NOT NULL,
+	[DSPPRC_3] [smallint] NOT NULL,
+	[DSPPRC_4] [smallint] NOT NULL,
+	[DSPPRC_5] [smallint] NOT NULL,
+	[DSPPRC_6] [smallint] NOT NULL,
+	[TSICOD_0] [nvarchar](20) NOT NULL,
+	[TSICOD_1] [nvarchar](20) NOT NULL,
+	[TSICOD_2] [nvarchar](20) NOT NULL,
+	[TSICOD_3] [nvarchar](20) NOT NULL,
+	[TSICOD_4] [nvarchar](20) NOT NULL,
+	[ITMREVNUM_0] [smallint] NOT NULL,
+	[SOCTEX_0] [nvarchar](17) NOT NULL,
+	[EECICT_0] [nvarchar](5) NOT NULL,
+	[EECLOC_0] [tinyint] NOT NULL,
+	[ICTCTY_0] [nvarchar](40) NOT NULL,
+	[FFWNUM_0] [nvarchar](15) NOT NULL,
+	[FFWADD_0] [nvarchar](5) NOT NULL,
+	[BPIEECNUM_0] [nvarchar](20) NOT NULL,
+	[PJT_0] [nvarchar](40) NOT NULL,
+	[CREUSR_0] [nvarchar](5) NOT NULL,
+	[CREDAT_0] [datetime] NOT NULL,
+	[UPDUSR_0] [nvarchar](5) NOT NULL,
+	[UPDDAT_0] [datetime] NOT NULL,
+	[CREDATTIM_0] [datetime] NOT NULL,
+	[UPDDATTIM_0] [datetime] NOT NULL,
+	[AUUID_0] [binary](16) NOT NULL,
+	[ROWID] [numeric](38, 0) IDENTITY(1,1) NOT NULL,
+ CONSTRAINT [SORDERC_ROWID] PRIMARY KEY NONCLUSTERED 
+(
+	[ROWID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+ALTER TABLE [MFS].[SORDERC] ADD  DEFAULT ((1)) FOR [UPDTICK_0]
+GO
+
+
