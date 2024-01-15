@@ -1,0 +1,59 @@
+USE [live]
+GO
+
+/****** Object:  Table [MFS].[SPACKD]    Script Date: 15/01/2024 14:30:56 ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [MFS].[SPACKD](
+	[UPDTICK_0] [int] NOT NULL,
+	[STOFCY_0] [nvarchar](5) NOT NULL,
+	[CPY_0] [nvarchar](5) NOT NULL,
+	[VCRTYP_0] [tinyint] NOT NULL,
+	[VCRNUM_0] [nvarchar](20) NOT NULL,
+	[VCRLIN_0] [int] NOT NULL,
+	[VCRSEQ_0] [int] NOT NULL,
+	[PACSEQ_0] [smallint] NOT NULL,
+	[PACNUM_0] [nvarchar](30) NOT NULL,
+	[PACIND_0] [int] NOT NULL,
+	[PCK_0] [nvarchar](5) NOT NULL,
+	[ITMREF_0] [nvarchar](20) NOT NULL,
+	[ITMDES1_0] [nvarchar](30) NOT NULL,
+	[QTY_0] [numeric](28, 13) NOT NULL,
+	[SAU_0] [nvarchar](3) NOT NULL,
+	[QTYPCU_0] [numeric](28, 13) NOT NULL,
+	[PCU_0] [nvarchar](3) NOT NULL,
+	[PCUSTUCOE_0] [numeric](18, 7) NOT NULL,
+	[LOT_0] [nvarchar](15) NOT NULL,
+	[SLO_0] [nvarchar](5) NOT NULL,
+	[SERNUM_0] [nvarchar](20) NOT NULL,
+	[PALNUM_0] [nvarchar](10) NOT NULL,
+	[CTRNUM_0] [nvarchar](10) NOT NULL,
+	[NETWEI_0] [numeric](13, 4) NOT NULL,
+	[WEU_0] [nvarchar](3) NOT NULL,
+	[ITMWEI_0] [numeric](13, 4) NOT NULL,
+	[WSTOCOU_0] [tinyint] NOT NULL,
+	[PCKSTKFLG_0] [tinyint] NOT NULL,
+	[EXPNUM_0] [int] NOT NULL,
+	[CREDAT_0] [datetime] NOT NULL,
+	[CREUSR_0] [nvarchar](5) NOT NULL,
+	[UPDDAT_0] [datetime] NOT NULL,
+	[UPDUSR_0] [nvarchar](5) NOT NULL,
+	[CREDATTIM_0] [datetime] NOT NULL,
+	[UPDDATTIM_0] [datetime] NOT NULL,
+	[AUUID_0] [binary](16) NOT NULL,
+	[ROWID] [numeric](38, 0) IDENTITY(1,1) NOT NULL,
+ CONSTRAINT [SPACKD_ROWID] PRIMARY KEY NONCLUSTERED 
+(
+	[ROWID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+ALTER TABLE [MFS].[SPACKD] ADD  DEFAULT ((1)) FOR [UPDTICK_0]
+GO
+
+
